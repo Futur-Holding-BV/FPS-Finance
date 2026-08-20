@@ -1,0 +1,522 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: finance-auth
+    description: Finance-local authentication
+  - name: finance
+    description: Finance application data
+  - name: finance-sync
+    description: Isolated Connect synchronization
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /finance/auth/login:
+    post:
+      operationId: financeLogin
+      tags: [finance-auth]
+      summary: Sign in to Finance using the local identity copy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceLoginInput"
+      responses:
+        "200":
+          description: Signed-in Finance session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSession"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/auth/logout:
+    post:
+      operationId: financeLogout
+      tags: [finance-auth]
+      summary: End the current Finance session
+      responses:
+        "204":
+          description: Session ended
+  /finance/auth/me:
+    get:
+      operationId: financeMe
+      tags: [finance-auth]
+      summary: Read the current Finance session
+      responses:
+        "200":
+          description: Current Finance session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSession"
+        "401":
+          description: No active session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/status:
+    get:
+      operationId: getFinanceStatus
+      tags: [finance]
+      summary: Read Finance runtime and degraded-mode status
+      responses:
+        "200":
+          description: Finance status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceStatus"
+  /finance/dashboard:
+    get:
+      operationId: getFinanceDashboard
+      tags: [finance]
+      summary: Read the Finance landing dashboard
+      responses:
+        "200":
+          description: Finance dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceDashboard"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/administrations:
+    get:
+      operationId: listFinanceAdministrations
+      tags: [finance]
+      summary: List local Finance administration copies
+      responses:
+        "200":
+          description: Finance administrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinanceAdministration"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/people:
+    get:
+      operationId: listFinancePeople
+      tags: [finance]
+      summary: List local Finance identity copies and roles
+      responses:
+        "200":
+          description: Finance people
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinancePerson"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/sync/status:
+    get:
+      operationId: getFinanceSyncStatus
+      tags: [finance-sync]
+      summary: Read the Connect sync adapter status
+      responses:
+        "200":
+          description: Sync status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSyncStatus"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/sync/run:
+    post:
+      operationId: runFinanceSync
+      tags: [finance-sync]
+      summary: Run an idempotent one-way Connect sync
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSyncResult"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Finance sync permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/audit-events:
+    get:
+      operationId: listFinanceAuditEvents
+      tags: [finance]
+      summary: List append-only payment and period-close audit events
+      responses:
+        "200":
+          description: Finance audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinanceAuditEvent"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Finance audit permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/payments/record:
+    post:
+      operationId: recordFinancePayment
+      tags: [finance]
+      summary: Record a completed payment as an immutable audit event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancePaymentRecordInput"
+      responses:
+        "201":
+          description: Recorded payment event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceAuditEvent"
+        "400":
+          description: Invalid payment audit input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Payment permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/periods/close:
+    post:
+      operationId: closeFinancePeriod
+      tags: [finance]
+      summary: Record a completed period close as an immutable audit event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancePeriodCloseInput"
+      responses:
+        "201":
+          description: Recorded period-close event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceAuditEvent"
+        "400":
+          description: Invalid period-close audit input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Period-close permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    FinanceLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 1
+        secondFactor:
+          type: ["string", "null"]
+    FinancePerson:
+      type: object
+      required: [id, name, email, employed, syncState, roles, secondFactorEnabled]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        employed:
+          type: boolean
+        syncState:
+          type: string
+          enum: [synced, pending, offline]
+        roles:
+          type: array
+          items:
+            type: string
+        secondFactorEnabled:
+          type: boolean
+        sourceUpdatedAt:
+          type: ["string", "null"]
+          format: date-time
+    FinanceSession:
+      type: object
+      required: [person, permissions, issuedAt]
+      properties:
+        person:
+          $ref: "#/components/schemas/FinancePerson"
+        permissions:
+          type: array
+          items:
+            type: string
+        issuedAt:
+          type: string
+          format: date-time
+    FinanceStatus:
+      type: object
+      required: [service, database, connectSync, mode, message]
+      properties:
+        service:
+          type: string
+          enum: [online]
+        database:
+          type: string
+          enum: [connected, degraded]
+        connectSync:
+          type: string
+          enum: [healthy, degraded, never-run]
+        mode:
+          type: string
+          enum: [normal, degraded]
+        message:
+          type: string
+    FinanceAdministration:
+      type: object
+      required: [id, name, shortName, source, active]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        shortName:
+          type: string
+        source:
+          type: string
+          enum: [connect, finance]
+        active:
+          type: boolean
+    FinanceDashboard:
+      type: object
+      required: [administrationCount, peopleCount, pendingSyncCount, permissions, recentEvents]
+      properties:
+        administrationCount:
+          type: number
+        peopleCount:
+          type: number
+        pendingSyncCount:
+          type: number
+        permissions:
+          type: array
+          items:
+            type: string
+        recentEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/FinanceEvent"
+    FinanceEvent:
+      type: object
+      required: [id, title, detail, occurredAt, tone]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        occurredAt:
+          type: string
+        tone:
+          type: string
+          enum: [neutral, success, warning]
+    FinanceSyncStatus:
+      type: object
+      required: [state, lastAttemptAt, lastSuccessAt, attempts, message]
+      properties:
+        state:
+          type: string
+          enum: [healthy, degraded, never-run]
+        lastAttemptAt:
+          type: ["string", "null"]
+          format: date-time
+        lastSuccessAt:
+          type: ["string", "null"]
+          format: date-time
+        attempts:
+          type: number
+        message:
+          type: string
+    FinanceSyncResult:
+      type: object
+      required: [state, processed, changed, skipped, message]
+      properties:
+        state:
+          type: string
+          enum: [healthy, degraded]
+        processed:
+          type: number
+        changed:
+          type: number
+        skipped:
+          type: number
+        message:
+          type: string
+    FinancePaymentRecordInput:
+      type: object
+      required: [administrationId, paymentReference, amount]
+      properties:
+        administrationId:
+          type: string
+          minLength: 1
+        paymentReference:
+          type: string
+          minLength: 1
+          maxLength: 120
+        amount:
+          type: number
+          exclusiveMinimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: EUR
+        occurredAt:
+          type: ["string", "null"]
+          format: date-time
+    FinancePeriodCloseInput:
+      type: object
+      required: [administrationId, period]
+      properties:
+        administrationId:
+          type: string
+          minLength: 1
+        period:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        occurredAt:
+          type: ["string", "null"]
+          format: date-time
+    FinanceAuditEvent:
+      type: object
+      required:
+        [id, action, actorPersonId, actorName, administrationId, administrationName, reference, amount, currency, outcome, occurredAt, recordedAt]
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+          enum: [payment_executed, period_closed]
+        actorPersonId:
+          type: string
+        actorName:
+          type: string
+        administrationId:
+          type: string
+        administrationName:
+          type: string
+        reference:
+          type: string
+        amount:
+          type: ["number", "null"]
+        currency:
+          type: ["string", "null"]
+        outcome:
+          type: string
+          enum: [completed]
+        occurredAt:
+          type: string
+          format: date-time
+        recordedAt:
+          type: string
+          format: date-time
+

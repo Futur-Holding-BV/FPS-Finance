@@ -1,0 +1,35 @@
+kind = "web"
+previewPath = "/"
+title = "FPS Finance"
+description = "Een zelfstandige Finance-toepassing voor FPS met lokale Finance-identiteiten, veilige aanmelding, Finance-rechten en een geïsoleerde stamgegevenssynchronisatie met Connect."
+version = "1.0.0"
+id = "artifacts/fps-finance"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/", "/finance-api" ]
+localPort = 22044
+
+[services.development]
+run = "pnpm --filter @workspace/fps-finance run dev"
+
+[services.production]
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/fps-finance", "run", "build"]
+
+[services.production.run]
+args = ["node", "--enable-source-maps", "artifacts/fps-finance/dist/server.mjs"]
+
+[services.production.run.env]
+PORT = "22044"
+BASE_PATH = "/"
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/finance-api/api/finance/status"
+
+[services.env]
+PORT = "22044"
+BASE_PATH = "/"
