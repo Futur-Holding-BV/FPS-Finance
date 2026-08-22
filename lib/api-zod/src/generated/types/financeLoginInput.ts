@@ -10,6 +10,9 @@ export interface FinanceLoginInput {
   email: string;
   /** @minLength 1 */
   password: string;
-  /** @nullable */
+  /**
+     * TOTP code (6 digits) or a one-time recovery code. Omit on the first factor-only attempt; supply when the server responds 401 with a secondFactorRequired hint.
+     * @nullable
+     */
   secondFactor?: string | null;
 }

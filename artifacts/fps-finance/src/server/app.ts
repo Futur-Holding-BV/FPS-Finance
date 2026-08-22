@@ -1,14 +1,21 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { existsSync } from "node:fs";
 import path from "node:path";
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import cookieParser from "cookie-parser";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import { createErrorReporter } from "@workspace/foutmonitoring";
 import {
-  CloseFinancePeriodBody,
-  CloseFinancePeriodResponse,
+  FinanceAcceptInvitationBody,
+  FinanceAcceptInvitationResponse,
+  FinanceCompleteInvitationBody,
+  FinanceCompleteInvitationResponse,
+  FinanceCreateInvitationBody,
+  FinanceCreateInvitationResponse,
+  FinanceInspectInvitationBody,
+  FinanceInspectInvitationResponse,
   FinanceLoginBody,
   FinanceLoginResponse,
   FinanceMeResponse,
@@ -18,32 +25,53 @@ import {
   ListFinanceAdministrationsResponse,
   ListFinanceAuditEventsResponse,
   ListFinancePeopleResponse,
-  RecordFinancePaymentBody,
-  RecordFinancePaymentResponse,
+  ListFinanceSalesInvoiceImportStatusesResponse,
+  ListFinanceSalesInvoicesResponse,
+  FinanceRevokeTwoFactorBody,
+  FinanceRevokeTwoFactorResponse,
   RunFinanceSyncResponse,
+  RunFinanceSalesInvoiceImportParams,
+  RunFinanceSalesInvoiceImportResponse,
 } from "@workspace/api-zod";
 import {
   hasFinancePermission,
   permissionsForRoles,
+  requiresFinanceSecondFactor,
   type FinancePermission,
 } from "@workspace/permissies";
 import { loadFinanceConfig } from "./config";
 import { ConnectSyncAdapter } from "./connect-sync";
+import { SalesInvoiceImportService } from "./invoice-import";
 import {
   MemoryFinanceRepository,
   PostgresFinanceRepository,
   type FinanceRepository,
 } from "./repository";
 import type { FinancePerson } from "./types";
+import { InvitationService } from "./invitations";
+import {
+  decryptTotpSecret,
+  encryptTotpSecret,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  hashToken,
+  validatePasswordStrength,
+  validateTotp,
+} from "./security";
 
 type FinanceSession = {
   personId: string;
   issuedAt: string;
+  sessionVersion: number;
+  secondFactorVerified: boolean;
 };
 
-const artifactDir = process.cwd().endsWith(path.join("artifacts", "fps-finance"))
+const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+const artifactDir = existsSync(path.join(process.cwd(), "dist/public/index.html"))
   ? process.cwd()
-  : path.resolve(process.cwd(), "artifacts/fps-finance");
+  : process.cwd().endsWith(path.join("artifacts", "fps-finance"))
+    ? process.cwd()
+    : path.resolve(process.cwd(), "artifacts/fps-finance");
 const config = loadFinanceConfig();
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -53,7 +81,10 @@ const reporter = createErrorReporter("fps-finance", logger);
 const repository: FinanceRepository = config.databaseUrl
   ? new PostgresFinanceRepository(config.databaseUrl)
   : new MemoryFinanceRepository();
-const syncAdapter = new ConnectSyncAdapter(config, reporter);
+
+const invitationService = new InvitationService(config);
+const syncAdapter = new ConnectSyncAdapter(config, reporter, invitationService);
+const salesInvoiceImportService = new SalesInvoiceImportService(config, reporter);
 
 function encodeSession(session: FinanceSession): string {
   const payload = Buffer.from(JSON.stringify(session)).toString("base64url");
@@ -75,11 +106,22 @@ function decodeSession(value: string | undefined): FinanceSession | null {
       !decoded ||
       typeof decoded !== "object" ||
       typeof (decoded as FinanceSession).personId !== "string" ||
-      typeof (decoded as FinanceSession).issuedAt !== "string"
+      typeof (decoded as FinanceSession).issuedAt !== "string" ||
+      typeof (decoded as FinanceSession).sessionVersion !== "number" ||
+      typeof (decoded as FinanceSession).secondFactorVerified !== "boolean"
     ) {
       return null;
     }
-    return decoded as FinanceSession;
+    const session = decoded as FinanceSession;
+    const issuedAt = Date.parse(session.issuedAt);
+    if (
+      !Number.isFinite(issuedAt)
+      || issuedAt > Date.now() + SESSION_CLOCK_SKEW_MS
+      || Date.now() - issuedAt > SESSION_MAX_AGE_MS
+    ) {
+      return null;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -98,15 +140,30 @@ function personResponse(person: FinancePerson) {
   };
 }
 
-async function currentSession(req: Request): Promise<{ person: FinancePerson; permissions: string[]; issuedAt: string } | null> {
+async function verifySecondFactor(person: FinancePerson, input: string): Promise<boolean> {
+  const normalized = input.trim().toUpperCase().replace(/[\s-]/g, "");
+  if (/^\d{6}$/.test(normalized) && person.totpSecretCiphertext) {
+    const secret = decryptTotpSecret(person.totpSecretCiphertext, config.encryptionKey);
+    const counter = validateTotp(secret, normalized);
+    return counter !== null && repository.updateTotpCounter(person.id, counter);
+  }
+  return repository.consumeRecoveryCode(person.id, hashToken(normalized));
+}
+async function currentSession(req: Request): Promise<{
+  person: FinancePerson;
+  permissions: string[];
+  issuedAt: string;
+  secondFactorVerified: boolean;
+} | null> {
   const session = decodeSession(req.cookies?.fps_finance_session);
   if (!session) return null;
   const person = await repository.findPersonById(session.personId);
-  if (!person || !person.employed) return null;
+  if (!person || !person.employed || person.sessionVersion !== session.sessionVersion) return null;
   return {
     person,
     permissions: permissionsForRoles(person.roles),
     issuedAt: session.issuedAt,
+    secondFactorVerified: session.secondFactorVerified,
   };
 }
 
@@ -121,14 +178,49 @@ function requirePermission(permission: FinancePermission) {
       res.status(403).json({ error: "Deze Finance-recht ontbreekt." });
       return;
     }
+    if (
+      requiresFinanceSecondFactor([permission])
+      && (!session.person.secondFactorEnabled || !session.secondFactorVerified)
+    ) {
+      res.status(403).json({ error: "Voor boekingsrechten is geverifieerde tweestapsverificatie verplicht." });
+      return;
+    }
     res.locals.financeSession = session;
     next();
   };
 }
 
 export async function createFinanceApp(): Promise<Express> {
-  if (repository instanceof MemoryFinanceRepository) {
-    await repository.bootstrap(config.bootstrap.email, config.bootstrap.password, config.bootstrap.roles);
+  await repository.assertIsolatedDatabase();
+  await repository.bootstrap(
+    config.bootstrap.email,
+    config.bootstrap.password,
+    config.bootstrap.roles,
+    config.bootstrap.totpSecret
+      ? encryptTotpSecret(config.bootstrap.totpSecret, config.encryptionKey)
+      : null,
+  );
+  if (config.bootstrap.email && invitationService.isConfigured()) {
+    const bootstrapInvitation = await invitationService.issueForEmail(
+      repository,
+      config.bootstrap.email,
+      "manual",
+      null,
+      { retryFailedDelivery: config.bootstrap.retryFailedInvitation },
+    );
+    if (bootstrapInvitation.deliveryState === "failed") {
+      throw new Error("The initial Finance administrator invitation could not be prepared.");
+    }
+  }
+  if (
+    repository instanceof MemoryFinanceRepository
+    && config.salesInvoiceSources.fpsOnePlatform.administrationId
+  ) {
+    repository.seedLocalAdministration(
+      config.salesInvoiceSources.fpsOnePlatform.administrationId,
+      "FPS Software B.V.",
+      "FPS Software",
+    );
   }
 
   const app = express();
@@ -177,24 +269,129 @@ export async function createFinanceApp(): Promise<Express> {
       res.status(401).json({ error: "Onjuiste inloggegevens." });
       return;
     }
-    if (person.secondFactorEnabled && !parsed.data.secondFactor) {
-      res.status(409).json({ error: "Tweestapsverificatie is vereist. TOTP-validatie wordt in de volgende beveiligingsstap gekoppeld." });
+    const permissions = permissionsForRoles(person.roles);
+    if (requiresFinanceSecondFactor(permissions) && !person.secondFactorEnabled) {
+      res.status(403).json({ error: "Activeer eerst je uitnodiging en authenticator voordat boekingsrechten gebruikt kunnen worden." });
       return;
+    }
+    let secondFactorVerified = false;
+    if (person.secondFactorEnabled) {
+      if (!parsed.data.secondFactor) {
+        res.status(401).json({ error: "Vul je authenticatorcode of een eenmalige herstelcode in." });
+        return;
+      }
+      secondFactorVerified = await verifySecondFactor(person, parsed.data.secondFactor);
+      if (!secondFactorVerified) {
+        res.status(401).json({ error: "De tweestapscode is ongeldig of al gebruikt." });
+        return;
+      }
     }
 
     const issuedAt = new Date().toISOString();
-    res.cookie("fps_finance_session", encodeSession({ personId: person.id, issuedAt }), {
+    res.cookie("fps_finance_session", encodeSession({
+      personId: person.id,
+      issuedAt,
+      sessionVersion: person.sessionVersion,
+      secondFactorVerified,
+    }), {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 8 * 60 * 60 * 1000,
+      maxAge: SESSION_MAX_AGE_MS,
     });
     res.json(FinanceLoginResponse.parse({
       person: personResponse(person),
-      permissions: permissionsForRoles(person.roles),
+      permissions,
       issuedAt,
     }));
+  });
+
+  app.post("/finance-api/api/finance/auth/invitations/inspect", async (req, res): Promise<void> => {
+    const parsed = FinanceInspectInvitationBody.safeParse(req.body);
+    const match = parsed.success
+      ? await repository.findValidInvitation(hashToken(parsed.data.token))
+      : null;
+    if (!match) {
+      res.status(400).json({ error: "Deze uitnodiging is ongeldig, verlopen of ingetrokken." });
+      return;
+    }
+    res.json(FinanceInspectInvitationResponse.parse({
+      email: match.person.email,
+      name: match.person.name,
+      expiresAt: match.invitation.expiresAt,
+    }));
+  });
+
+  app.post("/finance-api/api/finance/auth/invitations/accept", async (req, res): Promise<void> => {
+    const parsed = FinanceAcceptInvitationBody.safeParse(req.body);
+    const violations = parsed.success ? validatePasswordStrength(parsed.data.password) : [];
+    const match = parsed.success
+      ? await repository.findValidInvitation(hashToken(parsed.data.token))
+      : null;
+    if (!parsed.success || !match || violations.length > 0) {
+      res.status(400).json({
+        error: violations[0] ?? "Deze uitnodiging is ongeldig, verlopen of ingetrokken.",
+      });
+      return;
+    }
+    const secret = generateTotpSecret();
+    const recoveryCodes = generateRecoveryCodes();
+    await repository.prepareInvitationAuthentication({
+      invitationId: match.invitation.id,
+      personId: match.person.id,
+      passwordHash: await hash(parsed.data.password, 12),
+      totpSecretCiphertext: encryptTotpSecret(secret, config.encryptionKey),
+      recoveryCodeHashes: recoveryCodes.map((code) => hashToken(code)),
+    });
+    const label = `${match.person.name} — Finance`;
+    const otpauthUri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent("FPS Finance")}&algorithm=SHA1&digits=6&period=30`;
+    res.json(FinanceAcceptInvitationResponse.parse({
+      personLabel: label,
+      otpauthUri,
+      setupKey: secret,
+      recoveryCodes,
+    }));
+  });
+
+  app.post("/finance-api/api/finance/auth/invitations/complete", async (req, res): Promise<void> => {
+    const parsed = FinanceCompleteInvitationBody.safeParse(req.body);
+    const match = parsed.success
+      ? await repository.findValidInvitation(hashToken(parsed.data.token))
+      : null;
+    const secret = match?.person.totpSecretCiphertext
+      ? decryptTotpSecret(match.person.totpSecretCiphertext, config.encryptionKey)
+      : null;
+    const counter = parsed.success && secret ? validateTotp(secret, parsed.data.code) : null;
+    if (!parsed.success || !match || counter === null) {
+      res.status(400).json({ error: "De uitnodiging of authenticatorcode is ongeldig." });
+      return;
+    }
+    await repository.completeInvitation(match.invitation.id, match.person.id, counter);
+    res.json(FinanceCompleteInvitationResponse.parse({ success: true }));
+  });
+
+  app.post("/finance-api/api/finance/auth/2fa/revoke", async (req, res): Promise<void> => {
+    const session = await currentSession(req);
+    const parsed = FinanceRevokeTwoFactorBody.safeParse(req.body);
+    if (!session || !parsed.success || !session.person.secondFactorEnabled) {
+      res.status(401).json({ error: "Een geldige Finance-sessie met tweestapsverificatie is vereist." });
+      return;
+    }
+    const passwordMatches = session.person.passwordHash
+      ? await compare(parsed.data.password, session.person.passwordHash)
+      : false;
+    if (!passwordMatches || !(await verifySecondFactor(session.person, parsed.data.secondFactor))) {
+      res.status(401).json({ error: "Het wachtwoord of de tweestapscode is ongeldig." });
+      return;
+    }
+    await repository.revokeSecondFactor(
+      session.person.id,
+      session.person.id,
+      "self_service_verified_revocation",
+    );
+    res.clearCookie("fps_finance_session", { httpOnly: true, sameSite: "lax", path: "/" });
+    res.json(FinanceRevokeTwoFactorResponse.parse({ success: true }));
   });
 
   app.post("/finance-api/api/finance/auth/logout", (_req, res) => {
@@ -253,60 +450,39 @@ export async function createFinanceApp(): Promise<Express> {
     res.json(ListFinancePeopleResponse.parse(people.map(personResponse)));
   });
 
+  app.post(
+    "/finance-api/api/finance/auth/invitations",
+    requirePermission("finance.identities.manage"),
+    async (req, res): Promise<void> => {
+      const parsed = FinanceCreateInvitationBody.safeParse(req.body);
+      if (!parsed.success || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parsed.data.email)) {
+        res.status(400).json({ error: "Vul een geldig Finance-e-mailadres in." });
+        return;
+      }
+      const session = res.locals.financeSession as NonNullable<Awaited<ReturnType<typeof currentSession>>>;
+      try {
+        const delivery = await invitationService.issueForEmail(
+          repository,
+          parsed.data.email.trim().toLowerCase(),
+          "manual",
+          session.person.id,
+          { retryFailedDelivery: true },
+        );
+        const status = delivery.deliveryState === "failed" ? 400 : 201;
+        res.status(status).json(FinanceCreateInvitationResponse.parse({
+          email: parsed.data.email.trim().toLowerCase(),
+          deliveryState: delivery.deliveryState,
+          failureReason: delivery.deliveryState === "failed" ? delivery.message : null,
+        }));
+      } catch (error) {
+        reporter.capture(error, { operation: "finance-invitation-delivery" });
+        res.status(502).json({ error: "De uitnodiging kon niet via Microsoft Graph worden verzonden." });
+      }
+    },
+  );
+
   app.get("/finance-api/api/finance/audit-events", requirePermission("finance.audit.view"), async (_req, res): Promise<void> => {
     res.json(ListFinanceAuditEventsResponse.parse(await repository.listAuditEvents()));
-  });
-
-  app.post("/finance-api/api/finance/payments/record", requirePermission("finance.payments.execute"), async (req, res): Promise<void> => {
-    const parsed = RecordFinancePaymentBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Vul een administratie, betalingskenmerk en positief bedrag in." });
-      return;
-    }
-    const administration = (await repository.listAdministrations())
-      .find((candidate) => candidate.id === parsed.data.administrationId);
-    if (!administration) {
-      res.status(400).json({ error: "De gekozen Finance-administratie bestaat niet." });
-      return;
-    }
-    const session = res.locals.financeSession as NonNullable<Awaited<ReturnType<typeof currentSession>>>;
-    const event = await repository.recordAuditEvent({
-      action: "payment_executed",
-      actorPersonId: session.person.id,
-      administrationId: administration.id,
-      reference: parsed.data.paymentReference.trim(),
-      amount: parsed.data.amount,
-      currency: parsed.data.currency.toUpperCase(),
-      outcome: "completed",
-      occurredAt: (parsed.data.occurredAt ?? new Date()).toISOString(),
-    });
-    res.status(201).json(RecordFinancePaymentResponse.parse(event));
-  });
-
-  app.post("/finance-api/api/finance/periods/close", requirePermission("finance.period.close"), async (req, res): Promise<void> => {
-    const parsed = CloseFinancePeriodBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Vul een administratie en geldige periode in, bijvoorbeeld 2026-08." });
-      return;
-    }
-    const administration = (await repository.listAdministrations())
-      .find((candidate) => candidate.id === parsed.data.administrationId);
-    if (!administration) {
-      res.status(400).json({ error: "De gekozen Finance-administratie bestaat niet." });
-      return;
-    }
-    const session = res.locals.financeSession as NonNullable<Awaited<ReturnType<typeof currentSession>>>;
-    const event = await repository.recordAuditEvent({
-      action: "period_closed",
-      actorPersonId: session.person.id,
-      administrationId: administration.id,
-      reference: parsed.data.period,
-      amount: null,
-      currency: null,
-      outcome: "completed",
-      occurredAt: (parsed.data.occurredAt ?? new Date()).toISOString(),
-    });
-    res.status(201).json(CloseFinancePeriodResponse.parse(event));
   });
 
   app.get("/finance-api/api/finance/sync/status", requirePermission("finance.view"), async (_req, res): Promise<void> => {
@@ -316,6 +492,43 @@ export async function createFinanceApp(): Promise<Express> {
   app.post("/finance-api/api/finance/sync/run", requirePermission("finance.sync.run"), async (_req, res): Promise<void> => {
     res.json(RunFinanceSyncResponse.parse(await syncAdapter.run(repository)));
   });
+
+  app.get(
+    "/finance-api/api/finance/sales-invoices",
+    requirePermission("finance.invoices.view"),
+    async (_req, res): Promise<void> => {
+      res.json(ListFinanceSalesInvoicesResponse.parse(await repository.listSalesInvoices()));
+    },
+  );
+
+  app.get(
+    "/finance-api/api/finance/sales-invoice-imports/status",
+    requirePermission("finance.invoices.view"),
+    async (_req, res): Promise<void> => {
+      res.json(
+        ListFinanceSalesInvoiceImportStatusesResponse.parse(
+          await salesInvoiceImportService.statuses(repository),
+        ),
+      );
+    },
+  );
+
+  app.post(
+    "/finance-api/api/finance/sales-invoice-imports/:source/run",
+    requirePermission("finance.invoices.import"),
+    async (req, res): Promise<void> => {
+      const parsed = RunFinanceSalesInvoiceImportParams.safeParse(req.params);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Onbekende verkoopfactuurbron." });
+        return;
+      }
+      res.json(
+        RunFinanceSalesInvoiceImportResponse.parse(
+          await salesInvoiceImportService.run(parsed.data.source, repository),
+        ),
+      );
+    },
+  );
 
   app.use("/assets", express.static(path.join(artifactDir, "dist/public/assets"), { fallthrough: false }));
   app.use(express.static(path.join(artifactDir, "dist/public"), { index: false }));
@@ -329,3 +542,5 @@ export async function createFinanceApp(): Promise<Express> {
 
   return app;
 }
+
+const SESSION_CLOCK_SKEW_MS = 5 * 60 * 1000;

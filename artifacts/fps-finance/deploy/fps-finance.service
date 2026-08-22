@@ -1,0 +1,65 @@
+# /etc/systemd/system/fps-finance.service
+# Managed by FINANCE_VPS_01 deployment.
+# Do NOT embed secrets here; runtime secrets live in /etc/fps-finance/runtime.env.
+
+[Unit]
+Description=FPS Finance Node Application
+Documentation=https://finance.futurholding.com
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=fps-finance
+Group=fps-finance
+
+WorkingDirectory=/opt/fps-finance/current
+
+# External runtime env — root:fps-finance, mode 0640, never committed.
+# Database provisioning credentials are never stored in this file.
+EnvironmentFile=/etc/fps-finance/runtime.env
+
+# Runtime environment (non-secret)
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=22044
+Environment=BASE_PATH=/
+
+ExecStartPre=/usr/bin/node --enable-source-maps /opt/fps-finance/current/dist/finance-database.mjs verify
+ExecStart=/usr/bin/node --enable-source-maps /opt/fps-finance/current/dist/server.mjs
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fps-finance
+
+# Hardening (compatible with Node.js)
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/fps-finance
+ReadOnlyPaths=/etc/fps-finance
+
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RemoveIPC=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -10,8 +10,10 @@ import Login from '@/pages/login';
 import Dashboard from '@/pages/dashboard';
 import Administrations from '@/pages/administrations';
 import People from '@/pages/people';
+import SalesInvoices from '@/pages/sales-invoices';
 import Sync from '@/pages/sync';
 import ControlLog from '@/pages/control-log';
+import Invitation from '@/pages/invitation';
 
 import {
   Route,
@@ -33,13 +35,14 @@ setBaseUrl(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/finance-api`);
 
 function Router() {
   const [location] = useLocation();
-  const isLogin = location === '/login';
+  const isPublicAuth = location === '/login' || location === '/uitnodiging';
 
   return (
     <RoutedErrorBoundary>
-      {isLogin ? (
+      {isPublicAuth ? (
         <Switch>
           <Route path="/login" component={Login} />
+          <Route path="/uitnodiging" component={Invitation} />
           <Route component={NotFound} />
         </Switch>
       ) : (
@@ -47,9 +50,10 @@ function Router() {
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/administraties" component={Administrations} />
+            <Route path="/verkoopfacturen" component={SalesInvoices} />
             <Route path="/personen" component={People} />
             <Route path="/synchronisatie" component={Sync} />
-              <Route path="/controlelog" component={ControlLog} />
+            <Route path="/controlelog" component={ControlLog} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

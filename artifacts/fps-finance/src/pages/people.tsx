@@ -1,4 +1,4 @@
-import { useListFinancePeople } from "@workspace/api-client-react";
+import { useFinanceCreateInvitation, useListFinancePeople } from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +7,14 @@ import { Users, Search, ShieldCheck, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function People() {
   const { data: people, isLoading } = useListFinancePeople();
   const [search, setSearch] = useState("");
+  const invitation = useFinanceCreateInvitation();
+  const { toast } = useToast();
 
   if (isLoading) {
     return (
@@ -66,12 +70,13 @@ export default function People() {
               <TableHead>Rollen</TableHead>
               <TableHead>Veiligheid</TableHead>
               <TableHead>Laatste Update (Bron)</TableHead>
+              <TableHead className="text-right">Uitnodiging</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-slate-500">
+                <TableCell colSpan={6} className="text-center py-12 text-slate-500">
                   <div className="flex flex-col items-center justify-center space-y-3">
                     <Users className="w-10 h-10 text-slate-300" />
                     <p>Geen personen gevonden.</p>
@@ -117,6 +122,31 @@ export default function People() {
                   </TableCell>
                   <TableCell className="text-sm text-slate-500">
                     {formatDate(person.sourceUpdatedAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {!person.secondFactorEnabled && person.employed ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={invitation.isPending}
+                        onClick={() => invitation.mutate({ data: { email: person.email } }, {
+                          onSuccess: (result) => toast({
+                            title: result.deliveryState === "sent" ? "Uitnodiging verzonden" : "Uitnodiging bestaat al",
+                            description: result.deliveryState === "sent"
+                              ? `Microsoft Graph heeft de uitnodiging naar ${person.email} verzonden.`
+                              : "Er staat al een geldige uitnodiging klaar.",
+                          }),
+                          onError: (error) => toast({
+                            variant: "destructive",
+                            title: "Uitnodigen mislukt",
+                            description: error.data?.error ?? "De uitnodiging kon niet worden verzonden.",
+                          }),
+                        })}
+                        data-testid={`button-invite-${person.id}`}
+                      >
+                        <Mail className="mr-2 h-4 w-4" /> Uitnodigen
+                      </Button>
+                    ) : <span className="text-xs text-slate-400">Geactiveerd</span>}
                   </TableCell>
                 </TableRow>
               ))

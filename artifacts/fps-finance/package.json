@@ -4,10 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "export NODE_ENV=development && export FINANCE_DATABASE_URL=\"${FINANCE_DATABASE_URL:-$DATABASE_URL}\" && pnpm run build && pnpm run start",
+    "dev": "FINANCE_DATABASE_URL= FINANCE_SESSION_SECRET= NODE_ENV=development pnpm run build && FINANCE_DATABASE_URL= FINANCE_SESSION_SECRET= NODE_ENV=development pnpm run start",
     "build": "BASE_PATH=${BASE_PATH:-/} PORT=${PORT:-22044} vite build --config vite.config.ts && node ./build.mjs",
     "start": "node --enable-source-maps ./dist/server.mjs",
-    "db:push": "export FINANCE_DATABASE_URL=\"${FINANCE_DATABASE_URL:-$DATABASE_URL}\" && drizzle-kit push --config ./drizzle.config.ts",
+    "sync:cron": "node --enable-source-maps ./dist/connect-sync-cron.mjs",
+    "db:push": "drizzle-kit push --config ./drizzle.config.ts",
+    "db:provision": "node ./scripts/finance-database.mjs provision",
+    "db:migrate": "node ./scripts/finance-database.mjs migrate",
+    "db:verify": "node ./scripts/finance-database.mjs verify",
+    "db:rehearse": "node ./scripts/finance-database.mjs rehearse",
     "test": "pnpm run build && node --test ./tests/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

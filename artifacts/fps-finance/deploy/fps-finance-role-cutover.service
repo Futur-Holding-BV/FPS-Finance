@@ -1,0 +1,37 @@
+# /etc/systemd/system/fps-finance-role-cutover.service
+# One-time, transaction-scoped ownership/ACL cutover for the legacy Finance DB.
+
+[Unit]
+Description=Cut over FPS Finance database roles
+After=postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=oneshot
+User=postgres
+Group=postgres
+WorkingDirectory=/opt/fps-finance/current
+EnvironmentFile=/run/fps-finance/cutover.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node --enable-source-maps /opt/fps-finance/current/dist/finance-role-cutover.mjs --apply
+# The + prefix makes only this cleanup command run as root.
+ExecStopPost=+/usr/bin/rm -f /run/fps-finance/cutover.env
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/opt/fps-finance
+# ProtectSystem also affects ExecStopPost. This narrow exception lets only the
+# root-prefixed cleanup remove the credential file; the directory is root:root
+# mode 0700, so the postgres process still cannot access it directly.
+ReadWritePaths=/run/fps-finance
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes

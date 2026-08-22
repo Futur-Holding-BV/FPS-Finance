@@ -24,10 +24,79 @@ globalThis.require = __createRequire(import.meta.url);`,
 });
 
 await build({
+  entryPoints: [path.join(artifactDir, "src/server/validate-production-config.ts")],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  outfile: path.join(distDir, "validate-production-config.mjs"),
+  sourcemap: false,
+  logLevel: "silent",
+});
+
+await build({
+  entryPoints: [path.join(artifactDir, "scripts/finance-database.mjs")],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  outfile: path.join(distDir, "finance-database.mjs"),
+  sourcemap: "linked",
+  logLevel: "info",
+  external: ["pg-native"],
+  banner: {
+    js: `import { createRequire as __createRequire } from "node:module";
+globalThis.require = __createRequire(import.meta.url);`,
+  },
+});
+
+await build({
+  entryPoints: [path.join(artifactDir, "scripts/cutover-finance-database-roles.mjs")],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  outfile: path.join(distDir, "finance-role-cutover.mjs"),
+  sourcemap: "linked",
+  logLevel: "silent",
+  external: ["pg-native"],
+  banner: {
+    js: `import { createRequire as __createRequire } from "node:module";
+globalThis.require = __createRequire(import.meta.url);`,
+  },
+});
+
+await build({
+  entryPoints: [path.join(artifactDir, "src/server/scheduled-sync.ts")],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  outfile: path.join(distDir, "connect-sync-cron.mjs"),
+  sourcemap: "linked",
+  logLevel: "silent",
+  external: ["pg-native"],
+  banner: {
+    js: `import { createRequire as __createRequire } from "node:module";
+globalThis.require = __createRequire(import.meta.url);`,
+  },
+});
+
+await build({
   entryPoints: [path.join(artifactDir, "src/server/sync-core.ts")],
   bundle: true,
   platform: "node",
   format: "esm",
   outfile: path.join(distDir, "sync-core.mjs"),
   logLevel: "silent",
+});
+
+await build({
+  entryPoints: [path.join(artifactDir, "src/server/invoice-import.ts")],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  outfile: path.join(distDir, "invoice-import.mjs"),
+  logLevel: "silent",
+  external: ["pg-native"],
+  banner: {
+    js: `import { createRequire as __createRequire } from "node:module";
+globalThis.require = __createRequire(import.meta.url);`,
+  },
 });

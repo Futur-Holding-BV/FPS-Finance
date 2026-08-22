@@ -59,12 +59,6 @@ export default function Login() {
           description: error.data?.error || "Controleer je inloggegevens en probeer het opnieuw." 
         });
         
-        // If it's a 2FA requirement error, the backend would typically return a specific error code.
-        // We'll simulate prompting for 2FA by just showing the field if login failed.
-        // In a real scenario, check error code or message for 2FA trigger.
-        if (!form.getValues("secondFactor")) {
-          // just a basic fallback approach for UX
-        }
       }
     });
   };
@@ -132,13 +126,13 @@ export default function Login() {
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <Shield className="w-4 h-4 text-slate-500" />
-                        2FA Code (Optioneel)
+                         Authenticator- of herstelcode
                       </FormLabel>
                       <FormControl>
                         <Input autoComplete="one-time-code" placeholder="000000" maxLength={6} {...field} data-testid="input-2fa" />
                       </FormControl>
                       <FormDescription>
-                        Vul de code in uit je authenticator app indien geconfigureerd.
+                         Verplicht als tweestapsverificatie voor je Finance-account actief is.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

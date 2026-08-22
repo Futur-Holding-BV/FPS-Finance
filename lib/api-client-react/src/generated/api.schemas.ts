@@ -13,12 +13,91 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface FinanceSuccessResponse {
+  success: boolean;
+}
+
 export interface FinanceLoginInput {
   email: string;
   /** @minLength 1 */
   password: string;
-  /** @nullable */
+  /**
+     * TOTP code (6 digits) or a one-time recovery code. Omit on the first factor-only attempt; supply when the server responds 401 with a secondFactorRequired hint.
+     * @nullable
+     */
   secondFactor?: string | null;
+}
+
+export interface FinanceInvitationTokenInput {
+  /** @minLength 1 */
+  token: string;
+}
+
+export interface FinanceInvitationInspect {
+  email: string;
+  name: string;
+  expiresAt: string;
+}
+
+export interface FinanceAcceptInvitationInput {
+  /** @minLength 1 */
+  token: string;
+  /**
+     * Strong password chosen by the invitee; must meet the server-side strength policy
+     * @minLength 12
+     */
+  password: string;
+}
+
+export interface FinanceAcceptInvitationResult {
+  /** Human-readable label for the TOTP account entry (e.g. "Alice — Finance") */
+  personLabel: string;
+  /** otpauth:// URI to be rendered as a QR code in an authenticator app */
+  otpauthUri: string;
+  /** Plain-text TOTP secret for manual entry in authenticator apps */
+  setupKey: string;
+  /** One-time recovery codes; shown once and never returned again */
+  recoveryCodes: string[];
+}
+
+export interface FinanceCompleteInvitationInput {
+  /** @minLength 1 */
+  token: string;
+  /**
+     * 6-digit TOTP code from the authenticator app
+     * @pattern ^\d{6}$
+     */
+  code: string;
+}
+
+export interface FinanceRevokeTwoFactorInput {
+  /** @minLength 1 */
+  password: string;
+  /**
+     * Current TOTP code (6 digits) or a one-time recovery code
+     * @minLength 1
+     */
+  secondFactor: string;
+}
+
+export interface FinanceCreateInvitationInput {
+  email: string;
+}
+
+export type FinanceInvitationDeliveryDeliveryState = typeof FinanceInvitationDeliveryDeliveryState[keyof typeof FinanceInvitationDeliveryDeliveryState];
+
+
+export const FinanceInvitationDeliveryDeliveryState = {
+  sent: 'sent',
+  queued: 'queued',
+  failed: 'failed',
+} as const;
+
+export interface FinanceInvitationDelivery {
+  email: string;
+  deliveryState: FinanceInvitationDeliveryDeliveryState;
+  /** @nullable */
+  failureReason?: string | null;
 }
 
 export type FinancePersonSyncState = typeof FinancePersonSyncState[keyof typeof FinancePersonSyncState];
@@ -164,32 +243,92 @@ export interface FinanceSyncResult {
   message: string;
 }
 
-export interface FinancePaymentRecordInput {
-  /** @minLength 1 */
-  administrationId: string;
-  /**
-     * @minLength 1
-     * @maxLength 120
-     */
-  paymentReference: string;
-  /** @exclusiveMinimum 0 */
-  amount: number;
-  /**
-     * @minLength 3
-     * @maxLength 3
-     */
-  currency?: string;
+export type FinanceSalesInvoiceSource = typeof FinanceSalesInvoiceSource[keyof typeof FinanceSalesInvoiceSource];
+
+
+export const FinanceSalesInvoiceSource = {
+  'fps-connect': 'fps-connect',
+  'fps-one-platform': 'fps-one-platform',
+} as const;
+
+export type FinanceSalesInvoiceStatus = typeof FinanceSalesInvoiceStatus[keyof typeof FinanceSalesInvoiceStatus];
+
+
+export const FinanceSalesInvoiceStatus = {
+  draft: 'draft',
+  issued: 'issued',
+  paid: 'paid',
+  cancelled: 'cancelled',
+  credit: 'credit',
+} as const;
+
+export interface FinanceSalesInvoice {
+  id: string;
+  source: FinanceSalesInvoiceSource;
+  sourceDocumentId: string;
+  sourceVersion: string;
   /** @nullable */
-  occurredAt?: string | null;
+  sourceAdministrationId: string | null;
+  administrationId: string;
+  administrationName: string;
+  invoiceNumber: string;
+  status: FinanceSalesInvoiceStatus;
+  issueDate: string;
+  /** @nullable */
+  dueDate: string | null;
+  customerName: string;
+  currency: string;
+  subtotalAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  sourceUpdatedAt: string;
+  importedAt: string;
 }
 
-export interface FinancePeriodCloseInput {
-  /** @minLength 1 */
-  administrationId: string;
-  /** @pattern ^\d{4}-(0[1-9]|1[0-2])$ */
-  period: string;
+export type FinanceSalesInvoiceImportStatusState = typeof FinanceSalesInvoiceImportStatusState[keyof typeof FinanceSalesInvoiceImportStatusState];
+
+
+export const FinanceSalesInvoiceImportStatusState = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+  'never-run': 'never-run',
+} as const;
+
+export interface FinanceSalesInvoiceImportStatus {
+  source: FinanceSalesInvoiceSource;
+  state: FinanceSalesInvoiceImportStatusState;
+  configured: boolean;
   /** @nullable */
-  occurredAt?: string | null;
+  lastAttemptAt: string | null;
+  /** @nullable */
+  lastSuccessAt: string | null;
+  attempts: number;
+  processed: number;
+  changed: number;
+  skipped: number;
+  /** @nullable */
+  cursor: string | null;
+  message: string;
+}
+
+export type FinanceSalesInvoiceImportResultState = typeof FinanceSalesInvoiceImportResultState[keyof typeof FinanceSalesInvoiceImportResultState];
+
+
+export const FinanceSalesInvoiceImportResultState = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+} as const;
+
+export interface FinanceSalesInvoiceImportResult {
+  source: FinanceSalesInvoiceSource;
+  state: FinanceSalesInvoiceImportResultState;
+  configured: boolean;
+  processed: number;
+  changed: number;
+  skipped: number;
+  /** @nullable */
+  cursor: string | null;
+  message: string;
 }
 
 export type FinanceAuditEventAction = typeof FinanceAuditEventAction[keyof typeof FinanceAuditEventAction];
@@ -223,4 +362,3 @@ export interface FinanceAuditEvent {
   occurredAt: string;
   recordedAt: string;
 }
-

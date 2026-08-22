@@ -26,7 +26,7 @@ export const HealthCheckResponse = zod.object({
 export const FinanceLoginBody = zod.object({
   "email": zod.string(),
   "password": zod.string().min(1),
-  "secondFactor": zod.string().nullish()
+  "secondFactor": zod.string().nullish().describe('TOTP code (6 digits) or a one-time recovery code. Omit on the first factor-only attempt; supply when the server responds 401 with a secondFactorRequired hint.')
 })
 
 export const FinanceLoginResponse = zod.object({
@@ -67,6 +67,92 @@ export const FinanceMeResponse = zod.object({
 }),
   "permissions": zod.array(zod.string()),
   "issuedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Inspect an invitation token and return its metadata without consuming it
+ */
+
+
+
+export const FinanceInspectInvitationBody = zod.object({
+  "token": zod.string().min(1)
+})
+
+export const FinanceInspectInvitationResponse = zod.object({
+  "email": zod.string(),
+  "name": zod.string(),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Accept an invitation — set a strong password and receive TOTP setup material and one-time recovery codes
+ */
+
+export const financeAcceptInvitationBodyPasswordMin = 12;
+
+
+
+export const FinanceAcceptInvitationBody = zod.object({
+  "token": zod.string().min(1),
+  "password": zod.string().min(financeAcceptInvitationBodyPasswordMin).describe('Strong password chosen by the invitee; must meet the server-side strength policy')
+})
+
+export const FinanceAcceptInvitationResponse = zod.object({
+  "personLabel": zod.string().describe('Human-readable label for the TOTP account entry (e.g. \"Alice — Finance\")'),
+  "otpauthUri": zod.string().describe('otpauth:\/\/ URI to be rendered as a QR code in an authenticator app'),
+  "setupKey": zod.string().describe('Plain-text TOTP secret for manual entry in authenticator apps'),
+  "recoveryCodes": zod.array(zod.string()).describe('One-time recovery codes; shown once and never returned again')
+})
+
+
+/**
+ * @summary Complete an invitation by verifying the first TOTP code, activating the account
+ */
+
+export const financeCompleteInvitationBodyCodeRegExp = new RegExp('^\\d{6}$');
+
+
+export const FinanceCompleteInvitationBody = zod.object({
+  "token": zod.string().min(1),
+  "code": zod.string().regex(financeCompleteInvitationBodyCodeRegExp).describe('6-digit TOTP code from the authenticator app')
+})
+
+export const FinanceCompleteInvitationResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Revoke own two-factor authentication using password and a current second factor
+ */
+
+
+
+
+export const FinanceRevokeTwoFactorBody = zod.object({
+  "password": zod.string().min(1),
+  "secondFactor": zod.string().min(1).describe('Current TOTP code (6 digits) or a one-time recovery code')
+})
+
+export const FinanceRevokeTwoFactorResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Admin — create an invitation by email and return the delivery state
+ */
+export const FinanceCreateInvitationBody = zod.object({
+  "email": zod.string()
+})
+
+export const FinanceCreateInvitationResponse = zod.object({
+  "email": zod.string(),
+  "deliveryState": zod.enum(['sent', 'queued', 'failed']),
+  "failureReason": zod.string().nullish()
 })
 
 
@@ -154,6 +240,70 @@ export const RunFinanceSyncResponse = zod.object({
 
 
 /**
+ * @summary List canonical imported sales invoices
+ */
+export const ListFinanceSalesInvoicesResponseItem = zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['fps-connect', 'fps-one-platform']),
+  "sourceDocumentId": zod.string(),
+  "sourceVersion": zod.string(),
+  "sourceAdministrationId": zod.string().nullable(),
+  "administrationId": zod.string(),
+  "administrationName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'paid', 'cancelled', 'credit']),
+  "issueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
+  "customerName": zod.string(),
+  "currency": zod.string(),
+  "subtotalAmount": zod.number(),
+  "vatAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "sourceUpdatedAt": zod.coerce.date(),
+  "importedAt": zod.coerce.date()
+})
+export const ListFinanceSalesInvoicesResponse = zod.array(ListFinanceSalesInvoicesResponseItem)
+
+
+/**
+ * @summary Read the independent import status for each sales invoice source
+ */
+export const ListFinanceSalesInvoiceImportStatusesResponseItem = zod.object({
+  "source": zod.enum(['fps-connect', 'fps-one-platform']),
+  "state": zod.enum(['healthy', 'degraded', 'never-run']),
+  "configured": zod.boolean(),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "lastSuccessAt": zod.coerce.date().nullable(),
+  "attempts": zod.number(),
+  "processed": zod.number(),
+  "changed": zod.number(),
+  "skipped": zod.number(),
+  "cursor": zod.string().nullable(),
+  "message": zod.string()
+})
+export const ListFinanceSalesInvoiceImportStatusesResponse = zod.array(ListFinanceSalesInvoiceImportStatusesResponseItem)
+
+
+/**
+ * @summary Run one source-isolated and idempotent sales invoice import
+ */
+export const RunFinanceSalesInvoiceImportParams = zod.object({
+  "source": zod.enum(['fps-connect', 'fps-one-platform'])
+})
+
+export const RunFinanceSalesInvoiceImportResponse = zod.object({
+  "source": zod.enum(['fps-connect', 'fps-one-platform']),
+  "state": zod.enum(['healthy', 'degraded']),
+  "configured": zod.boolean(),
+  "processed": zod.number(),
+  "changed": zod.number(),
+  "skipped": zod.number(),
+  "cursor": zod.string().nullable(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary List append-only payment and period-close audit events
  */
 export const ListFinanceAuditEventsResponseItem = zod.object({
@@ -171,72 +321,3 @@ export const ListFinanceAuditEventsResponseItem = zod.object({
   "recordedAt": zod.coerce.date()
 })
 export const ListFinanceAuditEventsResponse = zod.array(ListFinanceAuditEventsResponseItem)
-
-
-/**
- * @summary Record a completed payment as an immutable audit event
- */
-
-export const recordFinancePaymentBodyPaymentReferenceMax = 120;
-
-export const recordFinancePaymentBodyAmountExclusiveMin = 0;
-
-export const recordFinancePaymentBodyCurrencyDefault = `EUR`;
-export const recordFinancePaymentBodyCurrencyMin = 3;
-export const recordFinancePaymentBodyCurrencyMax = 3;
-
-
-
-export const RecordFinancePaymentBody = zod.object({
-  "administrationId": zod.string().min(1),
-  "paymentReference": zod.string().min(1).max(recordFinancePaymentBodyPaymentReferenceMax),
-  "amount": zod.number().gt(recordFinancePaymentBodyAmountExclusiveMin),
-  "currency": zod.string().min(recordFinancePaymentBodyCurrencyMin).max(recordFinancePaymentBodyCurrencyMax).default(recordFinancePaymentBodyCurrencyDefault),
-  "occurredAt": zod.coerce.date().nullish()
-})
-
-export const RecordFinancePaymentResponse = zod.object({
-  "id": zod.string(),
-  "action": zod.enum(['payment_executed', 'period_closed']),
-  "actorPersonId": zod.string(),
-  "actorName": zod.string(),
-  "administrationId": zod.string(),
-  "administrationName": zod.string(),
-  "reference": zod.string(),
-  "amount": zod.number().nullable(),
-  "currency": zod.string().nullable(),
-  "outcome": zod.enum(['completed']),
-  "occurredAt": zod.coerce.date(),
-  "recordedAt": zod.coerce.date()
-})
-
-
-/**
- * @summary Record a completed period close as an immutable audit event
- */
-
-export const closeFinancePeriodBodyPeriodRegExp = new RegExp('^\\d{4}-(0[1-9]|1[0-2])$');
-
-
-export const CloseFinancePeriodBody = zod.object({
-  "administrationId": zod.string().min(1),
-  "period": zod.string().regex(closeFinancePeriodBodyPeriodRegExp),
-  "occurredAt": zod.coerce.date().nullish()
-})
-
-export const CloseFinancePeriodResponse = zod.object({
-  "id": zod.string(),
-  "action": zod.enum(['payment_executed', 'period_closed']),
-  "actorPersonId": zod.string(),
-  "actorName": zod.string(),
-  "administrationId": zod.string(),
-  "administrationName": zod.string(),
-  "reference": zod.string(),
-  "amount": zod.number().nullable(),
-  "currency": zod.string().nullable(),
-  "outcome": zod.enum(['completed']),
-  "occurredAt": zod.coerce.date(),
-  "recordedAt": zod.coerce.date()
-})
-
-

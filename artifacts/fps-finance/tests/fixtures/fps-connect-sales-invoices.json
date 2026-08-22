@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "id": "shared-invoice-001",
+      "version": "2026-08-20T10:00:00.000Z",
+      "administrationId": "connect-fps-bouw",
+      "invoiceNumber": "B-2026-0042",
+      "state": "sent",
+      "issuedOn": "2026-08-18",
+      "dueOn": "2026-09-17",
+      "customer": {
+        "name": "Bouwbedrijf De Vooruitgang"
+      },
+      "currency": "EUR",
+      "amounts": {
+        "net": 1000,
+        "vat": 210,
+        "total": 1210
+      },
+      "updatedAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "id": "connect-project-002",
+      "version": "2026-08-20T10:05:00.000Z",
+      "administrationId": "connect-fps-bouw",
+      "invoiceNumber": "B-2026-0043",
+      "state": "paid",
+      "issuedOn": "2026-08-19",
+      "dueOn": null,
+      "customer": {
+        "name": "Stadshaven Projecten"
+      },
+      "currency": "EUR",
+      "amounts": {
+        "net": 2500,
+        "vat": 525,
+        "total": 3025
+      },
+      "updatedAt": "2026-08-20T10:05:00.000Z"
+    }
+  ],
+  "nextCursor": "connect-cursor-2026-08-20T10:05:00Z",
+  "hasMore": false
+}

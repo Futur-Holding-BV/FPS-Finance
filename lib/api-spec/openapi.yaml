@@ -16,6 +16,8 @@ tags:
     description: Finance application data
   - name: finance-sync
     description: Isolated Connect synchronization
+  - name: finance-invoices
+    description: Source-isolated sales invoice imports
 paths:
   /healthz:
     get:
@@ -76,6 +78,144 @@ paths:
                 $ref: "#/components/schemas/FinanceSession"
         "401":
           description: No active session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/auth/invitations/inspect:
+    post:
+      operationId: financeInspectInvitation
+      tags: [finance-auth]
+      summary: Inspect an invitation token and return its metadata without consuming it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceInvitationTokenInput"
+      responses:
+        "200":
+          description: Invitation metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceInvitationInspect"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/auth/invitations/accept:
+    post:
+      operationId: financeAcceptInvitation
+      tags: [finance-auth]
+      summary: Accept an invitation — set a strong password and receive TOTP setup material and one-time recovery codes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceAcceptInvitationInput"
+      responses:
+        "200":
+          description: TOTP setup material and one-time recovery codes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceAcceptInvitationResult"
+        "400":
+          description: Invalid or expired token, or password too weak
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/auth/invitations/complete:
+    post:
+      operationId: financeCompleteInvitation
+      tags: [finance-auth]
+      summary: Complete an invitation by verifying the first TOTP code, activating the account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceCompleteInvitationInput"
+      responses:
+        "200":
+          description: Account activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSuccessResponse"
+        "400":
+          description: Invalid token or incorrect TOTP code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/auth/2fa/revoke:
+    post:
+      operationId: financeRevokeTwoFactor
+      tags: [finance-auth]
+      summary: Revoke own two-factor authentication using password and a current second factor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceRevokeTwoFactorInput"
+      responses:
+        "200":
+          description: Two-factor authentication revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSuccessResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid password or second factor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/auth/invitations:
+    post:
+      operationId: financeCreateInvitation
+      tags: [finance-auth]
+      summary: Admin — create an invitation by email and return the delivery state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceCreateInvitationInput"
+      responses:
+        "201":
+          description: Invitation created and delivery state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceInvitationDelivery"
+        "400":
+          description: Invalid email or person not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin permission required
           content:
             application/json:
               schema:
@@ -192,6 +332,94 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /finance/sales-invoices:
+    get:
+      operationId: listFinanceSalesInvoices
+      tags: [finance-invoices]
+      summary: List canonical imported sales invoices
+      responses:
+        "200":
+          description: Imported sales invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinanceSalesInvoice"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Finance invoice view permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/sales-invoice-imports/status:
+    get:
+      operationId: listFinanceSalesInvoiceImportStatuses
+      tags: [finance-invoices]
+      summary: Read the independent import status for each sales invoice source
+      responses:
+        "200":
+          description: Per-source invoice import statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinanceSalesInvoiceImportStatus"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Finance invoice view permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /finance/sales-invoice-imports/{source}/run:
+    post:
+      operationId: runFinanceSalesInvoiceImport
+      tags: [finance-invoices]
+      summary: Run one source-isolated and idempotent sales invoice import
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/FinanceSalesInvoiceSource"
+      responses:
+        "200":
+          description: Per-source invoice import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSalesInvoiceImportResult"
+        "400":
+          description: Unknown invoice source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Finance login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Finance invoice import permission required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /finance/audit-events:
     get:
       operationId: listFinanceAuditEvents
@@ -218,78 +446,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /finance/payments/record:
-    post:
-      operationId: recordFinancePayment
-      tags: [finance]
-      summary: Record a completed payment as an immutable audit event
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/FinancePaymentRecordInput"
-      responses:
-        "201":
-          description: Recorded payment event
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FinanceAuditEvent"
-        "400":
-          description: Invalid payment audit input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Finance login required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: Payment permission required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /finance/periods/close:
-    post:
-      operationId: closeFinancePeriod
-      tags: [finance]
-      summary: Record a completed period close as an immutable audit event
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/FinancePeriodCloseInput"
-      responses:
-        "201":
-          description: Recorded period-close event
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FinanceAuditEvent"
-        "400":
-          description: Invalid period-close audit input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Finance login required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: Period-close permission required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -305,6 +461,12 @@ components:
       properties:
         error:
           type: string
+    FinanceSuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
     FinanceLoginInput:
       type: object
       required: [email, password]
@@ -315,6 +477,93 @@ components:
           type: string
           minLength: 1
         secondFactor:
+          description: TOTP code (6 digits) or a one-time recovery code. Omit on the first factor-only attempt; supply when the server responds 401 with a secondFactorRequired hint.
+          type: ["string", "null"]
+    FinanceInvitationTokenInput:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+    FinanceInvitationInspect:
+      type: object
+      required: [email, name, expiresAt]
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    FinanceAcceptInvitationInput:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          description: Strong password chosen by the invitee; must meet the server-side strength policy
+          minLength: 12
+    FinanceAcceptInvitationResult:
+      type: object
+      required: [personLabel, otpauthUri, setupKey, recoveryCodes]
+      properties:
+        personLabel:
+          type: string
+          description: Human-readable label for the TOTP account entry (e.g. "Alice — Finance")
+        otpauthUri:
+          type: string
+          description: otpauth:// URI to be rendered as a QR code in an authenticator app
+        setupKey:
+          type: string
+          description: Plain-text TOTP secret for manual entry in authenticator apps
+        recoveryCodes:
+          type: array
+          description: One-time recovery codes; shown once and never returned again
+          items:
+            type: string
+    FinanceCompleteInvitationInput:
+      type: object
+      required: [token, code]
+      properties:
+        token:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          description: 6-digit TOTP code from the authenticator app
+          pattern: '^\d{6}$'
+    FinanceRevokeTwoFactorInput:
+      type: object
+      required: [password, secondFactor]
+      properties:
+        password:
+          type: string
+          minLength: 1
+        secondFactor:
+          type: string
+          description: Current TOTP code (6 digits) or a one-time recovery code
+          minLength: 1
+    FinanceCreateInvitationInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+    FinanceInvitationDelivery:
+      type: object
+      required: [email, deliveryState]
+      properties:
+        email:
+          type: string
+        deliveryState:
+          type: string
+          enum: [sent, queued, failed]
+        failureReason:
           type: ["string", "null"]
     FinancePerson:
       type: object
@@ -451,41 +700,107 @@ components:
           type: number
         message:
           type: string
-    FinancePaymentRecordInput:
+    FinanceSalesInvoiceSource:
+      type: string
+      enum: [fps-connect, fps-one-platform]
+    FinanceSalesInvoice:
       type: object
-      required: [administrationId, paymentReference, amount]
+      required:
+        [id, source, sourceDocumentId, sourceVersion, sourceAdministrationId, administrationId, administrationName, invoiceNumber, status, issueDate, dueDate, customerName, currency, subtotalAmount, vatAmount, totalAmount, sourceUpdatedAt, importedAt]
       properties:
+        id:
+          type: string
+        source:
+          $ref: "#/components/schemas/FinanceSalesInvoiceSource"
+        sourceDocumentId:
+          type: string
+        sourceVersion:
+          type: string
+        sourceAdministrationId:
+          type: ["string", "null"]
         administrationId:
           type: string
-          minLength: 1
-        paymentReference:
+        administrationName:
           type: string
-          minLength: 1
-          maxLength: 120
-        amount:
-          type: number
-          exclusiveMinimum: 0
+        invoiceNumber:
+          type: string
+        status:
+          type: string
+          enum: [draft, issued, paid, cancelled, credit]
+        issueDate:
+          type: string
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        customerName:
+          type: string
         currency:
           type: string
-          minLength: 3
-          maxLength: 3
-          default: EUR
-        occurredAt:
-          type: ["string", "null"]
+        subtotalAmount:
+          type: number
+        vatAmount:
+          type: number
+        totalAmount:
+          type: number
+        sourceUpdatedAt:
+          type: string
           format: date-time
-    FinancePeriodCloseInput:
+        importedAt:
+          type: string
+          format: date-time
+    FinanceSalesInvoiceImportStatus:
       type: object
-      required: [administrationId, period]
+      required:
+        [source, state, configured, lastAttemptAt, lastSuccessAt, attempts, processed, changed, skipped, cursor, message]
       properties:
-        administrationId:
+        source:
+          $ref: "#/components/schemas/FinanceSalesInvoiceSource"
+        state:
           type: string
-          minLength: 1
-        period:
-          type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
-        occurredAt:
+          enum: [healthy, degraded, never-run]
+        configured:
+          type: boolean
+        lastAttemptAt:
           type: ["string", "null"]
           format: date-time
+        lastSuccessAt:
+          type: ["string", "null"]
+          format: date-time
+        attempts:
+          type: number
+        processed:
+          type: number
+        changed:
+          type: number
+        skipped:
+          type: number
+        cursor:
+          type: ["string", "null"]
+        message:
+          type: string
+    FinanceSalesInvoiceImportResult:
+      type: object
+      required:
+        [source, state, configured, processed, changed, skipped, cursor, message]
+      properties:
+        source:
+          $ref: "#/components/schemas/FinanceSalesInvoiceSource"
+        state:
+          type: string
+          enum: [healthy, degraded]
+        configured:
+          type: boolean
+        processed:
+          type: number
+        changed:
+          type: number
+        skipped:
+          type: number
+        cursor:
+          type: ["string", "null"]
+        message:
+          type: string
     FinanceAuditEvent:
       type: object
       required:
@@ -519,4 +834,3 @@ components:
         recordedAt:
           type: string
           format: date-time
-

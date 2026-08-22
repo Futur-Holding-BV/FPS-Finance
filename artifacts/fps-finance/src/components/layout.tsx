@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Building, RefreshCw, LogOut, Loader2, Server, Database, ScrollText } from "lucide-react";
+import { LayoutDashboard, Users, Building, RefreshCw, LogOut, Loader2, Server, Database, ScrollText, FileText } from "lucide-react";
 import { getFinanceMeQueryKey, getGetFinanceStatusQueryKey, useFinanceMe, useFinanceLogout, useGetFinanceStatus } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/administraties", label: "Administraties", icon: Building },
+    { href: "/verkoopfacturen", label: "Verkoopfacturen", icon: FileText },
     { href: "/personen", label: "Personen", icon: Users },
     { href: "/synchronisatie", label: "Synchronisatie", icon: RefreshCw },
     { href: "/controlelog", label: "Controlelog", icon: ScrollText },

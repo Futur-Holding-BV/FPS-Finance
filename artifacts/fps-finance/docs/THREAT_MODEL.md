@@ -18,6 +18,8 @@
 | Ongeautoriseerde betaling/sync | Finance-permissiecontrole vóór routes | audit trail per gevoelige actie |
 | Sync-replay of dubbele gegevens | idempotente monotone `sourceVersion`-upsert | ondertekend contract en schema-evolutiebeleid |
 | Connect/Finance datalek | eigen `finance`-schema in development; neveneffectvrije Finance-databasefactory; geen cross-database foreign keys | fysiek aparte Finance-database op de eigen VPS en netwerkrestricties |
+| Gestolen databasecredential | aparte migratie- en runtimegebruikers; runtime zonder DDL- of auditmutatierechten | periodieke rotatie en private netwerkroute |
+| Verlies van Finance-data | transactionele, volgordevaste migraties met checksums; productie-runbook met terugvalgrens | dagelijkse age-versleutelde off-host back-up met gescheiden privésleutel en periodieke hersteltest |
 | 2FA-bypass | 2FA-plichtige identiteit kan niet door zonder vervolgpad | TOTP-validatie, versleutelde secretopslag en herstelcodes |
 | Wijzigen of wissen van financieel bewijs | append-only controlelog met database-trigger tegen `UPDATE` en `DELETE` | externe back-up en periodieke integriteitscontrole |
 | Geheime waarden in logs | pino-redaction voor cookies en authorization; foutmonitoring logt alleen foutcontext | log-retentie en toegangssturing |
@@ -35,7 +37,10 @@
 ## Acceptatiecriteria voor productie
 
 - Finance-secrets zijn ingesteld en verschillen van Connect-secrets.
+- Finance gebruikt de beperkte runtimegebruiker; de migratiecredential is niet
+  aanwezig in de applicatieomgeving.
 - De migratie is op de Finance-database uitgevoerd.
+- Een hersteltest naar een afzonderlijke database is geslaagd.
 - Een eerste lokale Finance-beheerder is via veilige bootstrap aangemaakt.
 - Het Connect-synccontract is gevalideerd op schema, timeout en rechten.
 - TOTP en auditlogging zijn vóór gebruik voor betalings- of afsluitrechten

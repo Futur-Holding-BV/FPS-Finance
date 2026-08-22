@@ -21,15 +21,26 @@ import type {
 
 import type {
   ErrorResponse,
+  FinanceAcceptInvitationInput,
+  FinanceAcceptInvitationResult,
   FinanceAdministration,
   FinanceAuditEvent,
+  FinanceCompleteInvitationInput,
+  FinanceCreateInvitationInput,
   FinanceDashboard,
+  FinanceInvitationDelivery,
+  FinanceInvitationInspect,
+  FinanceInvitationTokenInput,
   FinanceLoginInput,
-  FinancePaymentRecordInput,
-  FinancePeriodCloseInput,
   FinancePerson,
+  FinanceRevokeTwoFactorInput,
+  FinanceSalesInvoice,
+  FinanceSalesInvoiceImportResult,
+  FinanceSalesInvoiceImportStatus,
+  FinanceSalesInvoiceSource,
   FinanceSession,
   FinanceStatus,
+  FinanceSuccessResponse,
   FinanceSyncResult,
   FinanceSyncStatus,
   HealthStatus
@@ -358,6 +369,361 @@ export function useFinanceMe<TData = Awaited<ReturnType<typeof financeMe>>, TErr
 
 
 
+
+export const getFinanceInspectInvitationUrl = () => {
+
+
+
+
+  return `/api/finance/auth/invitations/inspect`
+}
+
+/**
+ * @summary Inspect an invitation token and return its metadata without consuming it
+ */
+export const financeInspectInvitation = async (financeInvitationTokenInput: FinanceInvitationTokenInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceInvitationInspect> => {
+
+  return customFetch<FinanceInvitationInspect>(getFinanceInspectInvitationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(financeInvitationTokenInput)
+  }
+);}
+
+
+
+
+
+export const getFinanceInspectInvitationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeInspectInvitation>>, TError,{data: BodyType<FinanceInvitationTokenInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof financeInspectInvitation>>, TError,{data: BodyType<FinanceInvitationTokenInput>}, TContext> => {
+
+const mutationKey = ['financeInspectInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof financeInspectInvitation>>, {data: BodyType<FinanceInvitationTokenInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  financeInspectInvitation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinanceInspectInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof financeInspectInvitation>>>
+    export type FinanceInspectInvitationMutationBody = BodyType<FinanceInvitationTokenInput>
+    export type FinanceInspectInvitationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Inspect an invitation token and return its metadata without consuming it
+ */
+export const useFinanceInspectInvitation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeInspectInvitation>>, TError,{data: BodyType<FinanceInvitationTokenInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof financeInspectInvitation>>,
+        TError,
+        {data: BodyType<FinanceInvitationTokenInput>},
+        TContext
+      > => {
+      return useMutation(getFinanceInspectInvitationMutationOptions(options));
+    }
+
+export const getFinanceAcceptInvitationUrl = () => {
+
+
+
+
+  return `/api/finance/auth/invitations/accept`
+}
+
+/**
+ * @summary Accept an invitation — set a strong password and receive TOTP setup material and one-time recovery codes
+ */
+export const financeAcceptInvitation = async (financeAcceptInvitationInput: FinanceAcceptInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceAcceptInvitationResult> => {
+
+  return customFetch<FinanceAcceptInvitationResult>(getFinanceAcceptInvitationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(financeAcceptInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getFinanceAcceptInvitationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeAcceptInvitation>>, TError,{data: BodyType<FinanceAcceptInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof financeAcceptInvitation>>, TError,{data: BodyType<FinanceAcceptInvitationInput>}, TContext> => {
+
+const mutationKey = ['financeAcceptInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof financeAcceptInvitation>>, {data: BodyType<FinanceAcceptInvitationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  financeAcceptInvitation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinanceAcceptInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof financeAcceptInvitation>>>
+    export type FinanceAcceptInvitationMutationBody = BodyType<FinanceAcceptInvitationInput>
+    export type FinanceAcceptInvitationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Accept an invitation — set a strong password and receive TOTP setup material and one-time recovery codes
+ */
+export const useFinanceAcceptInvitation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeAcceptInvitation>>, TError,{data: BodyType<FinanceAcceptInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof financeAcceptInvitation>>,
+        TError,
+        {data: BodyType<FinanceAcceptInvitationInput>},
+        TContext
+      > => {
+      return useMutation(getFinanceAcceptInvitationMutationOptions(options));
+    }
+
+export const getFinanceCompleteInvitationUrl = () => {
+
+
+
+
+  return `/api/finance/auth/invitations/complete`
+}
+
+/**
+ * @summary Complete an invitation by verifying the first TOTP code, activating the account
+ */
+export const financeCompleteInvitation = async (financeCompleteInvitationInput: FinanceCompleteInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceSuccessResponse> => {
+
+  return customFetch<FinanceSuccessResponse>(getFinanceCompleteInvitationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(financeCompleteInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getFinanceCompleteInvitationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeCompleteInvitation>>, TError,{data: BodyType<FinanceCompleteInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof financeCompleteInvitation>>, TError,{data: BodyType<FinanceCompleteInvitationInput>}, TContext> => {
+
+const mutationKey = ['financeCompleteInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof financeCompleteInvitation>>, {data: BodyType<FinanceCompleteInvitationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  financeCompleteInvitation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinanceCompleteInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof financeCompleteInvitation>>>
+    export type FinanceCompleteInvitationMutationBody = BodyType<FinanceCompleteInvitationInput>
+    export type FinanceCompleteInvitationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Complete an invitation by verifying the first TOTP code, activating the account
+ */
+export const useFinanceCompleteInvitation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeCompleteInvitation>>, TError,{data: BodyType<FinanceCompleteInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof financeCompleteInvitation>>,
+        TError,
+        {data: BodyType<FinanceCompleteInvitationInput>},
+        TContext
+      > => {
+      return useMutation(getFinanceCompleteInvitationMutationOptions(options));
+    }
+
+export const getFinanceRevokeTwoFactorUrl = () => {
+
+
+
+
+  return `/api/finance/auth/2fa/revoke`
+}
+
+/**
+ * @summary Revoke own two-factor authentication using password and a current second factor
+ */
+export const financeRevokeTwoFactor = async (financeRevokeTwoFactorInput: FinanceRevokeTwoFactorInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceSuccessResponse> => {
+
+  return customFetch<FinanceSuccessResponse>(getFinanceRevokeTwoFactorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(financeRevokeTwoFactorInput)
+  }
+);}
+
+
+
+
+
+export const getFinanceRevokeTwoFactorMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeRevokeTwoFactor>>, TError,{data: BodyType<FinanceRevokeTwoFactorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof financeRevokeTwoFactor>>, TError,{data: BodyType<FinanceRevokeTwoFactorInput>}, TContext> => {
+
+const mutationKey = ['financeRevokeTwoFactor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof financeRevokeTwoFactor>>, {data: BodyType<FinanceRevokeTwoFactorInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  financeRevokeTwoFactor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinanceRevokeTwoFactorMutationResult = NonNullable<Awaited<ReturnType<typeof financeRevokeTwoFactor>>>
+    export type FinanceRevokeTwoFactorMutationBody = BodyType<FinanceRevokeTwoFactorInput>
+    export type FinanceRevokeTwoFactorMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Revoke own two-factor authentication using password and a current second factor
+ */
+export const useFinanceRevokeTwoFactor = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeRevokeTwoFactor>>, TError,{data: BodyType<FinanceRevokeTwoFactorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof financeRevokeTwoFactor>>,
+        TError,
+        {data: BodyType<FinanceRevokeTwoFactorInput>},
+        TContext
+      > => {
+      return useMutation(getFinanceRevokeTwoFactorMutationOptions(options));
+    }
+
+export const getFinanceCreateInvitationUrl = () => {
+
+
+
+
+  return `/api/finance/auth/invitations`
+}
+
+/**
+ * @summary Admin — create an invitation by email and return the delivery state
+ */
+export const financeCreateInvitation = async (financeCreateInvitationInput: FinanceCreateInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceInvitationDelivery> => {
+
+  return customFetch<FinanceInvitationDelivery>(getFinanceCreateInvitationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(financeCreateInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getFinanceCreateInvitationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeCreateInvitation>>, TError,{data: BodyType<FinanceCreateInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof financeCreateInvitation>>, TError,{data: BodyType<FinanceCreateInvitationInput>}, TContext> => {
+
+const mutationKey = ['financeCreateInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof financeCreateInvitation>>, {data: BodyType<FinanceCreateInvitationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  financeCreateInvitation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinanceCreateInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof financeCreateInvitation>>>
+    export type FinanceCreateInvitationMutationBody = BodyType<FinanceCreateInvitationInput>
+    export type FinanceCreateInvitationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Admin — create an invitation by email and return the delivery state
+ */
+export const useFinanceCreateInvitation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof financeCreateInvitation>>, TError,{data: BodyType<FinanceCreateInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof financeCreateInvitation>>,
+        TError,
+        {data: BodyType<FinanceCreateInvitationInput>},
+        TContext
+      > => {
+      return useMutation(getFinanceCreateInvitationMutationOptions(options));
+    }
 
 export const getGetFinanceStatusUrl = () => {
 
@@ -815,6 +1181,231 @@ export const useRunFinanceSync = <TError = ErrorType<ErrorResponse>,
       return useMutation(getRunFinanceSyncMutationOptions(options));
     }
 
+export const getListFinanceSalesInvoicesUrl = () => {
+
+
+
+
+  return `/api/finance/sales-invoices`
+}
+
+/**
+ * @summary List canonical imported sales invoices
+ */
+export const listFinanceSalesInvoices = async ( options?: Parameters<typeof customFetch>[1]): Promise<FinanceSalesInvoice[]> => {
+
+  return customFetch<FinanceSalesInvoice[]>(getListFinanceSalesInvoicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFinanceSalesInvoicesQueryKey = () => {
+    return [
+    `/api/finance/sales-invoices`
+    ] as const;
+    }
+
+
+export const getListFinanceSalesInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof listFinanceSalesInvoices>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFinanceSalesInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFinanceSalesInvoicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFinanceSalesInvoices>>> = ({ signal }) => listFinanceSalesInvoices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFinanceSalesInvoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFinanceSalesInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listFinanceSalesInvoices>>>
+export type ListFinanceSalesInvoicesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List canonical imported sales invoices
+ */
+
+export function useListFinanceSalesInvoices<TData = Awaited<ReturnType<typeof listFinanceSalesInvoices>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFinanceSalesInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFinanceSalesInvoicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListFinanceSalesInvoiceImportStatusesUrl = () => {
+
+
+
+
+  return `/api/finance/sales-invoice-imports/status`
+}
+
+/**
+ * @summary Read the independent import status for each sales invoice source
+ */
+export const listFinanceSalesInvoiceImportStatuses = async ( options?: Parameters<typeof customFetch>[1]): Promise<FinanceSalesInvoiceImportStatus[]> => {
+
+  return customFetch<FinanceSalesInvoiceImportStatus[]>(getListFinanceSalesInvoiceImportStatusesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFinanceSalesInvoiceImportStatusesQueryKey = () => {
+    return [
+    `/api/finance/sales-invoice-imports/status`
+    ] as const;
+    }
+
+
+export const getListFinanceSalesInvoiceImportStatusesQueryOptions = <TData = Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFinanceSalesInvoiceImportStatusesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>> = ({ signal }) => listFinanceSalesInvoiceImportStatuses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFinanceSalesInvoiceImportStatusesQueryResult = NonNullable<Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>>
+export type ListFinanceSalesInvoiceImportStatusesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Read the independent import status for each sales invoice source
+ */
+
+export function useListFinanceSalesInvoiceImportStatuses<TData = Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFinanceSalesInvoiceImportStatuses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFinanceSalesInvoiceImportStatusesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRunFinanceSalesInvoiceImportUrl = (source: FinanceSalesInvoiceSource,) => {
+
+
+
+
+  return `/api/finance/sales-invoice-imports/${source}/run`
+}
+
+/**
+ * @summary Run one source-isolated and idempotent sales invoice import
+ */
+export const runFinanceSalesInvoiceImport = async (source: FinanceSalesInvoiceSource, options?: Parameters<typeof customFetch>[1]): Promise<FinanceSalesInvoiceImportResult> => {
+
+  return customFetch<FinanceSalesInvoiceImportResult>(getRunFinanceSalesInvoiceImportUrl(source),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunFinanceSalesInvoiceImportMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runFinanceSalesInvoiceImport>>, TError,{source: FinanceSalesInvoiceSource}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runFinanceSalesInvoiceImport>>, TError,{source: FinanceSalesInvoiceSource}, TContext> => {
+
+const mutationKey = ['runFinanceSalesInvoiceImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runFinanceSalesInvoiceImport>>, {source: FinanceSalesInvoiceSource}> = (props) => {
+          const {source} = props ?? {};
+
+          return  runFinanceSalesInvoiceImport(source,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunFinanceSalesInvoiceImportMutationResult = NonNullable<Awaited<ReturnType<typeof runFinanceSalesInvoiceImport>>>
+
+    export type RunFinanceSalesInvoiceImportMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Run one source-isolated and idempotent sales invoice import
+ */
+export const useRunFinanceSalesInvoiceImport = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runFinanceSalesInvoiceImport>>, TError,{source: FinanceSalesInvoiceSource}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runFinanceSalesInvoiceImport>>,
+        TError,
+        {source: FinanceSalesInvoiceSource},
+        TContext
+      > => {
+      return useMutation(getRunFinanceSalesInvoiceImportMutationOptions(options));
+    }
+
 export const getListFinanceAuditEventsUrl = () => {
 
 
@@ -885,152 +1476,3 @@ export function useListFinanceAuditEvents<TData = Awaited<ReturnType<typeof list
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
-export const getRecordFinancePaymentUrl = () => {
-
-
-
-
-  return `/api/finance/payments/record`
-}
-
-/**
- * @summary Record a completed payment as an immutable audit event
- */
-export const recordFinancePayment = async (financePaymentRecordInput: FinancePaymentRecordInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceAuditEvent> => {
-
-  return customFetch<FinanceAuditEvent>(getRecordFinancePaymentUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(financePaymentRecordInput)
-  }
-);}
-
-
-
-
-
-export const getRecordFinancePaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordFinancePayment>>, TError,{data: BodyType<FinancePaymentRecordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof recordFinancePayment>>, TError,{data: BodyType<FinancePaymentRecordInput>}, TContext> => {
-
-const mutationKey = ['recordFinancePayment'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordFinancePayment>>, {data: BodyType<FinancePaymentRecordInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  recordFinancePayment(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RecordFinancePaymentMutationResult = NonNullable<Awaited<ReturnType<typeof recordFinancePayment>>>
-    export type RecordFinancePaymentMutationBody = BodyType<FinancePaymentRecordInput>
-    export type RecordFinancePaymentMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Record a completed payment as an immutable audit event
- */
-export const useRecordFinancePayment = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordFinancePayment>>, TError,{data: BodyType<FinancePaymentRecordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof recordFinancePayment>>,
-        TError,
-        {data: BodyType<FinancePaymentRecordInput>},
-        TContext
-      > => {
-      return useMutation(getRecordFinancePaymentMutationOptions(options));
-    }
-
-export const getCloseFinancePeriodUrl = () => {
-
-
-
-
-  return `/api/finance/periods/close`
-}
-
-/**
- * @summary Record a completed period close as an immutable audit event
- */
-export const closeFinancePeriod = async (financePeriodCloseInput: FinancePeriodCloseInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceAuditEvent> => {
-
-  return customFetch<FinanceAuditEvent>(getCloseFinancePeriodUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(financePeriodCloseInput)
-  }
-);}
-
-
-
-
-
-export const getCloseFinancePeriodMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeFinancePeriod>>, TError,{data: BodyType<FinancePeriodCloseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof closeFinancePeriod>>, TError,{data: BodyType<FinancePeriodCloseInput>}, TContext> => {
-
-const mutationKey = ['closeFinancePeriod'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeFinancePeriod>>, {data: BodyType<FinancePeriodCloseInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  closeFinancePeriod(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CloseFinancePeriodMutationResult = NonNullable<Awaited<ReturnType<typeof closeFinancePeriod>>>
-    export type CloseFinancePeriodMutationBody = BodyType<FinancePeriodCloseInput>
-    export type CloseFinancePeriodMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Record a completed period close as an immutable audit event
- */
-export const useCloseFinancePeriod = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeFinancePeriod>>, TError,{data: BodyType<FinancePeriodCloseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof closeFinancePeriod>>,
-        TError,
-        {data: BodyType<FinancePeriodCloseInput>},
-        TContext
-      > => {
-      return useMutation(getCloseFinancePeriodMutationOptions(options));
-    }
-
