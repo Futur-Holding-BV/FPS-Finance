@@ -4,11 +4,13 @@ Dit runbook richt een lege, zelfstandige Finance-database, de Finance-runtime,
 Microsoft Graph-uitnodigingen en de uurlijkse Connect-sync in op FINANCE_VPS_01.
 Het maakt geen verbinding met Connect en wijzigt geen Connect-database.
 
-> Status: de VPS-baseline is op 2026-08-22 geverifieerd met loopback-only
-> PostgreSQL, startup-isolatie en een publiek TLS-inlogscherm. De daarna
-> samengevoegde productiearchitectuur met gescheiden migrator/runtime-rollen,
-> Graph-uitnodigingen, MFA en cron-sync moet nog volgens de volledige
-> aftekenlijst onderaan worden uitgerold en geverifieerd.
+> Status: de actuele productiearchitectuur is op 2026-08-22 via de gecontroleerde
+> VPS-release uitgerold. De bestaande legacydatabase is na een gevalideerde
+> back-up transactioneel overgezet naar gescheiden migrator/runtime-rollen,
+> migratie `0007` is toegepast, startup-isolatie en minimale privileges zijn
+> geverifieerd en het publieke TLS-inlogscherm is actief. De operationele
+> uitnodigings-, cron-, herstel- en monitoringproeven blijven in de aftekenlijst
+> onderaan expliciet open.
 
 Voer eerst dezelfde stappen uit op een verwijderbare repetitiedatabase. Neem
 nooit database-URL's, wachtwoorden, Graph-secrets, TOTP-seeds of tokens op in
@@ -546,22 +548,29 @@ Start nooit meerdere handmatige workers om een storing "sneller" in te halen.
 
 ### Volledige aftekening voor de actuele productiearchitectuur
 
-- [ ] Repetitie op een lege, verwijderbare database is geslaagd.
-- [ ] `fps_finance` bestaat leeg op FINANCE_VPS_01 met eigenaar `fps_finance_migrator`.
-- [ ] PostgreSQL luistert alleen op `127.0.0.1`; poort 5432 is niet extern open.
-- [ ] `FINANCE_MIGRATION_DATABASE_URL` staat tijdelijk in de operatorshell (niet in runtime.env).
-- [ ] `db:provision` is als enige provisioningopdracht geslaagd; JSON-uitvoer bevat `privilegesVerified: true`.
-- [ ] `fps_finance_app` heeft alleen de geverifieerde minimale rechten.
-- [ ] `fps_finance_migrator` heeft na provisioning `NOCREATEROLE`.
-- [ ] `db:verify` slaagt met `FINANCE_VERIFY_LIMITED_RUNTIME=true` en `FINANCE_VERIFY_TLS=true`.
-- [ ] Het doel bevat geen `connect`-schema.
-- [ ] `FINANCE_MIGRATION_DATABASE_URL` en het runtime-rolwachtwoord ontbreken in de runtimeomgeving.
-- [ ] `FINANCE_DATABASE_URL` staat in `/etc/fps-finance/runtime.env` (root-eigen, 0640)
+- [x] Repetitie op verwijderbare databases is geslaagd, inclusief een
+      Connect-schemaweigering vóór luisteren.
+- [x] De bestaande `fps_finance`-database is na een gevalideerde back-up
+      transactioneel overgezet naar eigenaar `fps_finance_migrator`.
+- [x] PostgreSQL luistert alleen op `127.0.0.1`; poort 5432 is niet extern open.
+- [x] `FINANCE_MIGRATION_DATABASE_URL` is alleen tijdelijk aan de
+      provisioning-oneshot verstrekt en staat niet in `runtime.env`.
+- [x] `db:provision` is geslaagd; de journal-JSON bevat
+      `privilegesVerified: true`, elf applicatietabellen en migratie `0007`.
+- [x] `fps_finance_app` heeft alleen de geverifieerde minimale rechten.
+- [x] `fps_finance_migrator` heeft na provisioning `NOCREATEROLE`.
+- [x] `db:verify` slaagt met `FINANCE_VERIFY_LIMITED_RUNTIME=true`; TLS is voor
+      de geverifieerde lokale loopbackverbinding niet vereist.
+- [x] Het productiedoel bevat geen `connect`- of legacy `finance`-schema.
+- [x] Tijdelijke migratie- en runtime-rolcredentials zijn na provisioning uit
+      `/run` en `/tmp` verwijderd.
+- [x] `FINANCE_DATABASE_URL` staat in `/etc/fps-finance/runtime.env` (root-eigen, 0640)
       en verschilt van de Connect-database.
-- [ ] Startup-isolatie slaagt; geen legacy `finance`-schema of onbekende tabellen.
-- [ ] `FINANCE_SESSION_SECRET` is apart, minimaal 32 tekens, niet gelijk aan
+- [x] Startup-isolatie slaagt; geen legacy `finance`-schema of onbekende tabellen.
+- [x] `FINANCE_SESSION_SECRET` is apart, minimaal 32 tekens, niet gelijk aan
       `SESSION_SECRET`, en stabiel over deployments.
-- [ ] Finance-healthcheck meldt `database: connected` en `mode: normal`.
+- [x] Finance-healthcheck meldt `database: connected` en `mode: normal`.
+- [x] Graph-clientcredentials geven een token met de applicatierol `Mail.Send`.
 - [ ] Graph `Mail.Send` heeft admin consent en is tot de control-mailbox beperkt.
 - [ ] Een eerste beheerder heeft via uitnodiging wachtwoord en TOTP ingesteld.
 - [ ] Herstelcodes zijn door de gebruiker offline bewaard.

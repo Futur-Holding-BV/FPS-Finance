@@ -26,7 +26,9 @@ test("VPS release stops old code before provisioning and starts new code afterwa
   assertOrdered(script, [
     "sudo systemctl stop \\${SERVICE_NAME}",
     'mv -Tf "\\${DEPLOY_DIR}/next" "\\${DEPLOY_DIR}/current"',
-    "sudo systemctl restart \\${PROVISION_SERVICE_NAME}",
+    'sudo systemctl stop "\\${PROVISION_SERVICE_NAME}"',
+    "sudo install -o root -g root -m 0600",
+    "sudo systemctl start \\${PROVISION_SERVICE_NAME}",
     "sudo systemctl restart \\${SERVICE_NAME}",
   ]);
   assert.match(script, /drizzle\s+\\\n\s+deploy\/SCHEMA_COMPATIBILITY/);
@@ -37,10 +39,18 @@ test("VPS release stops old code before provisioning and starts new code afterwa
   assert.match(script, /REMOTE_PROVISION_ENV_STAGED.*provision\.env/s);
   assert.match(script, /FINANCE_MIGRATION_DATABASE_URL/);
   assert.match(script, /FINANCE_RUNTIME_DATABASE_PASSWORD/);
+  assert.doesNotMatch(script, /source "\$\{REMOTE_RUNTIME_ENV_FILE\}"/);
+  assert.match(script, /FINANCE_DATABASE_URL="\$\{FINANCE_RUNTIME_DATABASE_URL\}"/);
+  assert.match(script, /grep -Fxq "\\\$\{RELEASE_TAG\}"/);
+  assert.doesNotMatch(script, /grep -Fxq '\\\$\{RELEASE_TAG\}'/);
   assert.match(script, /fps-finance-deploy\.lock/);
   assert.match(script, /AUTO_CUTOVER_LEGACY_DATABASE_ROLES/);
   assert.match(script, /pg_dump/);
   assert.match(script, /pg_restore --list/);
+  assert.match(
+    script,
+    /chmod o\+rx '\$\{DEPLOY_DIR\}' '\$\{DEPLOY_DIR\}\/releases' '\$\{DEPLOY_DIR\}\/releases\/\$\{RELEASE_TAG\}'/,
+  );
   assert.match(script, /finance-role-cutover/);
   assert.match(script, /\/run\/fps-finance\/provision\.env/);
   assert.match(script, /sudo rm -f \/etc\/fps-finance\/env/);

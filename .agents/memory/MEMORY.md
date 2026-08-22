@@ -1,0 +1,1 @@
+- [Finance VPS release hardening](finance-vps-release-hardening.md) — preserve systemd credential cleanup ordering and shell-safe env/release handling.

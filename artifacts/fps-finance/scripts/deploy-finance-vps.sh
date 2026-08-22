@@ -350,16 +350,15 @@ echo "==> [1/7] Building fps-finance locally (tag: ${RELEASE_TAG})..."
 )
 
 if [[ -n "${REMOTE_RUNTIME_ENV_FILE}" ]]; then
-  (
-    set -a
-    # The generated file uses JSON-compatible quoting and contains no commands.
-    # shellcheck disable=SC1090
-    source "${REMOTE_RUNTIME_ENV_FILE}"
-    set +a
-    env -u DATABASE_URL -u SESSION_SECRET \
-      NODE_ENV=production \
-      node "${APP_DIR}/dist/validate-production-config.mjs"
-  )
+  # Validate with the values already held by this process. The generated
+  # systemd EnvironmentFile is data, not a shell script: sourcing it would
+  # expand valid secret characters such as "$" before validation.
+  env -u DATABASE_URL -u SESSION_SECRET \
+    NODE_ENV=production \
+    FINANCE_DATABASE_URL="${FINANCE_RUNTIME_DATABASE_URL}" \
+    FINANCE_PUBLIC_URL="https://${REMOTE_HOST}" \
+    FINANCE_GRAPH_SENDER="control@futurholding.com" \
+    node "${APP_DIR}/dist/validate-production-config.mjs"
 fi
 
 # ---------------------------------------------------------------------------
@@ -384,9 +383,12 @@ echo "    Archive size: $(du -sh "${RELEASE_ARCHIVE}" | cut -f1)"
 # ---------------------------------------------------------------------------
 echo "==> [3/7] Transferring release to ${SSH_TARGET}:${DEPLOY_DIR}/releases/${RELEASE_TAG}..."
 
-# Create remote release directory
+# Create the remote release directory. The role-cutover oneshot runs as the
+# local postgres OS user and must be able to traverse the non-secret code tree.
+# Runtime secrets remain separately protected under /etc/fps-finance.
 ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" \
-  "mkdir -p '${DEPLOY_DIR}/releases/${RELEASE_TAG}'"
+  "mkdir -p '${DEPLOY_DIR}/releases/${RELEASE_TAG}' && \
+   chmod o+rx '${DEPLOY_DIR}' '${DEPLOY_DIR}/releases' '${DEPLOY_DIR}/releases/${RELEASE_TAG}'"
 
 # Transfer archive
 rsync -az --rsh="ssh ${SSH_OPTS[*]}" \
@@ -573,7 +575,7 @@ if ! ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" bash -s <<EOF
     echo 'ERROR: current does not identify the release being provisioned.' >&2
     exit 1
   fi
-  grep -Fxq '\${RELEASE_TAG}' "\${selected_release}/deploy/RELEASE_ID"
+  grep -Fxq "\${RELEASE_TAG}" "\${selected_release}/deploy/RELEASE_ID"
   grep -Fxq '${SCHEMA_COMPATIBILITY}' "\${selected_release}/deploy/SCHEMA_COMPATIBILITY"
 
   # --- Install units only after current points at the complete new release ---
@@ -592,6 +594,13 @@ if ! ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" bash -s <<EOF
     /etc/systemd/system/\${CUTOVER_SERVICE_NAME}.service
   rm -f /tmp/fps-finance-role-cutover.service
   sudo systemctl daemon-reload
+
+  # A legacy provision unit used RemainAfterExit=yes. Stop that stale active
+  # state before staging the new credential file: after daemon-reload, the new
+  # ExecStopPost cleanup applies and would otherwise delete provision.env as
+  # the first half of a restart.
+  sudo systemctl stop "\${PROVISION_SERVICE_NAME}" 2>/dev/null || true
+  sudo systemctl reset-failed "\${PROVISION_SERVICE_NAME}" 2>/dev/null || true
 
   # --- Provision with a short-lived root-only environment ---
   if [[ ! -f /tmp/fps-finance-provision.env ]]; then
@@ -650,7 +659,7 @@ if ! ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" bash -s <<EOF
     echo "    Legacy database-role cutover completed; backup: \${backup_final}"
   fi
 
-  sudo systemctl restart \${PROVISION_SERVICE_NAME}
+  sudo systemctl start \${PROVISION_SERVICE_NAME}
   if sudo test -e /run/fps-finance/provision.env; then
     echo 'ERROR: provisioning credentials remained after the oneshot unit.' >&2
     exit 1
